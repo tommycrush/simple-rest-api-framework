@@ -2,7 +2,7 @@ PHP Framework for a REST API
 ===
 
 ## To use:
-1) Download
+1) Download /n
 2) Change database parameters
 3) open 'get.class.php' [this contains the GET functions]
   - place custom functions in the API_FUNCTIONS class [use lowercase]
