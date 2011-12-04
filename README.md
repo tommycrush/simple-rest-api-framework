@@ -3,12 +3,15 @@ PHP Framework for a REST API
 
 ## To use:
 1) Download
+--
 2) Change database parameters
+--
 3) open 'get.class.php' [this contains the GET functions]
----
+--
   - place custom functions in the API_FUNCTIONS class [use lowercase]
   - update $valid_functions
 4) repeat with 'post.class.php' [this contains the POST functions]
+--
 
 
 ### Functions you'll want to use
