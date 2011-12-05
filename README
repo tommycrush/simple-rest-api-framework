@@ -2,7 +2,12 @@ PHP Framework for a REST API
 ===========================================================
 Created by Tommy Crush (http://www.twitter.com/ThomasTommyTom)
 ===========================================================
+
+
+
 Purpose: This is a framework written in PHP [w/ MySQL] that is purposely developed to the point where it is easy to customize it without having to pour over lines of code about what is and is not needed.
+
+
 
 This framework:
    - allows POST and GET, and distinguishes between the two
@@ -12,18 +17,21 @@ This framework:
    - built to return both JSON and XML, depending on param 'format' [defaults to json]
 
 
+
+
 Future work on framework:
    - oAuth functionality
 
 
-####### To use:########
+
+
+##################### To use:#######################
 1) Download
-2) Change database parameters
-3) open 'get.class.php' [this contains the GET functions]
+2) Change database parameters in api base
+3) open 'functions/get.class.php' [this contains the GET functions]
   3a) place custom functions in the API_FUNCTIONS class [use lowercase]
   3b) update $valid_functions with function names
-4) repeat with 'post.class.php' [this contains the POST functions]
-
+4) repeat with 'functions/post.class.php' [this contains the POST functions]
 
 
 
