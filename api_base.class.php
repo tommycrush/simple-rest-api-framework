@@ -82,7 +82,7 @@ class API_BASE {
 		}	
 		
 		if($load){
-			require($request_data_method.'.class.php');
+			require("functions/".$request_data_method.'.class.php');
 		}
 		
 		return $require;
