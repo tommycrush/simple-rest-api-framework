@@ -1,5 +1,19 @@
 PHP Framework for a REST API
-===
+===========================================================
+Created by Tommy Crush (http://www.twitter.com/ThomasTommyTom)
+===========================================================
+Purpose: This is a framework written in PHP [w/ MySQL] that is purposely developed to the point where it is easy to customize it without having to pour over lines of code about what is and is not needed.
+
+This framework:
+   - allows POST and GET, and distinguishes between the two
+   	- i.e.: A method of 'username' is different with GET and POST
+   - allows you to easily declare required parameters, and to return them at the same time
+   - allows easy response function
+   - built to return both JSON and XML, depending on param 'format' [defaults to json]
+
+
+Future work on framework:
+   - oAuth functionality
 
 
 ####### To use:########
@@ -14,12 +28,16 @@ PHP Framework for a REST API
 
 
 
+
+
 ######### Functions you'll want to use##########
+[there are many, but these are the ones you'll interact with]
+
 
 setRequiredParams
 	Param 1: Accepts a string, or an array of strings. 
 	Ensures that parameters are available
-	Returns the required variables [either just a straight var, or an array with list()]
+	Returns the required variables [either just a straight var, or an array that can be used with list(); see example]
 
 respond
 	Param 1: status code [200 on success]
