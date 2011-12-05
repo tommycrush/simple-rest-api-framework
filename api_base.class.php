@@ -6,44 +6,46 @@ class API_BASE {
 	private $data;//param data
 	private $response_format;//response format
 	
+	private $user_id, $app_id, $access_token = null;//auth vars
+	
 	
 	public function __construct(){
 		
 		//connect to database
-		mysql_connect("localhost", "username", "password") or $this->respond(503 ,"Database connection broken");
-		mysql_select_db("db_name")or $this->respond(503, "Database connection broken");			
+		mysql_connect("localhost", "username", "password") or $this->respond(503 ,"Database connection broken:1");
+		mysql_select_db("db_name") or $this->respond(503, "Database connection broken:2");			
 		
 		
 		//setup method and data
-		$request_data_method = strtolower($_SERVER['REQUEST_METHOD']);  
-		
-		if($request_data_method == 'post'){
-			$this->request_data_method = 'post';
-			$this->data = $_POST;
-		}else{
-			$this->request_data_method = 'get';
-			$this->data = $_GET;			
-		}
+		$request_method = $this->determineRequestMethod(false);
+		$this->request_data_method = $request_method;
+		$this->data = $request_method == 'post' ? $_POST : $_GET;
+
 
 		//set response format, fails to json is nothing
-		$this->response_format = ($this->data["format"] == 'xml' ? 'xml' : 'json');
+		$this->response_format = $this->getParam("format") == 'xml' ? 'xml' : 'json';
 
 		
 		if(empty($this->data["method"])){//in the client sence, method is the function they want to call
 			$this->respond(404, 'Method was not declcared');
 		}else{
-			$this->method = strtolower($this->data["method"]);//define the method called in lowercase form
+			$this->method = strtolower($this->getParam("method"));//define the method called in lowercase form
+		}
+		
+		//built in functionality:
+		if($this->method == "access_token"){
+			$this->createAccessToken();
 		}
 
 	}
-	
+		
 	public function __destruct(){
 		mysql_close();
 	}
 	
 	
 	public function query($query){
-		$result = mysql_query($query) or $this->respond(503, 'Database error');
+		$result = mysql_query($query) or $this->respond(503, 'Database query error');
 		return $result;
 	}
 	
@@ -70,19 +72,23 @@ class API_BASE {
 	public function getMethod(){
 		return $this->method;
 	}
+
+	public function getAppId(){
+		return $this->app_id;
+	}
 	
+	public function getUserId(){
+		return $this->user_id;
+	}
+
 	public static function determineRequestMethod($load = true){
 		
 		$request_data_method = strtolower($_SERVER['REQUEST_METHOD']);  
 		
-		if($request_data_method == 'post'){
-			$require =  'post';
-		}else{
-			$require = 'get';		
-		}	
+		$require = $request_data_method == 'post' ? 'post' : 'get';
 		
 		if($load){
-			require("functions/".$request_data_method.'.class.php');
+			require("functions/".$require.".class.php");
 		}
 		
 		return $require;
@@ -105,13 +111,153 @@ class API_BASE {
 		}
 	}
 	
+	
 	//return a particular param
 	private function requireParam($param){
-		if(empty($this->getParam($param))){//check to ensure param exists
+		$value_check = $this->getParam($param);
+		if(empty($value_check)){//check to ensure param exists
 			$this->respond(400, "Parameter of '".$param."' is missing");
 		}
-		return;
 	}
+	
+	
+	
+	
+	/*
+	 * Authentication methods
+	 * 		requireAuthLevel
+	 * 		setAppId
+	 * 		setUserId
+	 * 
+	 */
+	
+	
+	//method to establish level of authentication required
+	public function requireAuthLevel($level = 'userAuth'){
+		if($level == 'userAuth'){
+			$this->validateToken();
+		}elseif($level == 'appAuth'){
+			$this->validateApp();
+		}elseif($level == 'none'){
+			//do nothing
+		}else{
+			//throw an error, auth is too important to do nothing on accident
+			$this->respond(500, "setAuthLevel error: $level does not exists [options: userAuth, appAuth, none]");
+		}
+	}
+	
+	/*
+	 * 	helpers in setting app and user ids
+	 * 		created for validation functions
+	 */ 
+	
+	private function setAppId($id){
+		$this->app_id = $id;
+	}
+	
+	private function setUserId($id){
+		$this->user_id = $id;
+	}
+	
+	
+	
+	/*
+	 * validateToken
+	 * 		is called on userAuth requirement
+	 */
+	
+	private function validateToken(){
+		//require and get params
+		list($token, $secret) = $this->setRequiredParams(array("access_token", "access_secret"));
+		
+		//clean vars
+		$token = $this->clean($token);
+		$secret = $this->clean($secret);
+		
+		//query
+		$result = $this->query("SELECT user_id, app_id FROM api_sessions WHERE `token`='$token' AND `token_secret`='$secret' AND UNIX_TIMESTAMP(`expires_on`) > UNIX_TIMESTAMP(NOW()) LIMIT 1");
+		
+		//ensure we have a result
+		if(mysql_num_rows($result) == 0){
+			$this->respond(404, "Invalid userAuth access_token and access_secret combination");
+		}
+		
+		//get data
+		$row = mysql_fetch_array($result);
+		$app_id = intval($row["app_id"]);
+		$user_id = intval($row["user_id"]);
+		
+		//save data
+		$this->setAppId($app_id);
+		$this->setUserId($user_id);
+	}
+	
+	
+	
+	/*
+	 * validateApp
+	 * 		is called on appAuth requirement
+	 */
+	
+	private function validateApp(){
+		//require and get params
+		list($app_id, $app_secret) = $this->setRequiredParams(array("app_id", "app_secret"));		
+		
+		//clean vars
+		$app_id = intval($app_id);
+		$app_secret = $this->clean($app_secret);
+		
+		//query
+		$result = $this->query("SELECT app_id FROM apps WHERE app_id='$app_id' AND `app_secret`='$app_secret' LIMIT 1");
+	 	
+		//ensure we have a result
+		if(mysql_num_rows($result) == 0){
+			$this->respond(404, "Invalid appAuth app_id and app_secret combination");
+		}		
+		
+		//save results
+	 	$this->setAppId($app_id);
+		return $app_id;
+	}
+	
+	
+	
+	private function createAccessToken(){
+		//auth the app first		
+		$app_id = $this->validateApp();
+		
+		//clean the token
+		$token = $this->setRequiredParams("auth_token");
+		$token = $this->clean($token);
+		
+		//query
+		$result = $this->query("SELECT user_id FROM api_loggedin_tokens WHERE `app_id`='$app_id' AND `token`='$token' AND UNIX_TIMESTAMP(`expires_on`) > UNIX_TIMESTAMP(NOW()) LIMIT 1 ");
+		//ensure we have a result
+		if(mysql_num_rows($result) == 0){
+			$this->respond(404, "Invalid auth_token and app_id combination, or token is expired");
+		}
+		
+		//get the user_id
+		$row = mysql_fetch_array($result);
+		$user_id = intval($row["user_id"]);
+		
+		//create the token
+		$token = $this->genRandomString(40);
+		$secret = $this->genRandomString(20);
+		
+		$this->query("INSERT INTO `api_sessions` (`token`,`token_secret`,`user_id`,`app_id`,`expires_on`) VALUES ('$token','$secret','$user_id','$app_id', DATE_ADD(NOW(), INTERVAL 6 HOUR) )");
+	
+		$this->respond(200, array("access_token" => $token, "access_secret" => $secret));
+
+	}
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	
@@ -216,6 +362,16 @@ class API_BASE {
 	            $xml_info->addChild("$key","$value");
 	        }
 	    }
+	}
+	
+	
+	public function genRandomString($length) {
+	    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	    $string = "";    
+	    for ($p = 0; $p < $length; $p++) {
+	        $string .= $characters[mt_rand(0, strlen($characters))];
+	    }
+	    return $string;
 	}
 
 }

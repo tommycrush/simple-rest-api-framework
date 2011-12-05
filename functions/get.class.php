@@ -27,6 +27,8 @@ class API_FUNCTIONS extends API_BASE {
 	
 	
 	public function example1(){
+		$this->requireAuthLevel('userAuth');
+		
 		//set required paramaters, it returns a string or a list of variables, depending on what is passed to it
 		$user_id = $this->setRequiredParams('user_id');
 		$user_id = intval($user_id);
@@ -41,7 +43,7 @@ class API_FUNCTIONS extends API_BASE {
 	}
 	
 	
-	public function example2(){
+	public function example2(){		
 		//we can extract variables at they same time that we've required them
 		list($text, $post_id) = $this->setRequiredParams(array('text','post_id'));
 		

@@ -15,7 +15,8 @@ This framework:
    - allows you to easily declare required parameters, and to return them at the same time
    - allows easy response function
    - built to return both JSON and XML, depending on param 'format' [defaults to json]
-
+   - has the beginnings of oAuth built into it
+   - allows different permissions for different functions [see 'requireAuthLevel' below]
 
 
 
@@ -25,17 +26,19 @@ Future work on framework:
 
 
 
+
 ##################### To use:#######################
 1) Download
 2) Change database parameters in api base
-3) open 'functions/get.class.php' [this contains the GET functions]
-  3a) place custom functions in the API_FUNCTIONS class [use lowercase]
-  3b) update $valid_functions with function names
-4) repeat with 'functions/post.class.php' [this contains the POST functions]
+3) Run SQL file [explanation below]
+4) open 'functions/get.class.php' [this contains the GET functions]
+  4a) place custom functions in the API_FUNCTIONS class [use lowercase]
+  4b) update $valid_functions with function names
+5) repeat with 'functions/post.class.php' [this contains the POST functions]
 
 
 
-
+Take a look at the database structure in order to effectively and efficiently combine the dealt users table with yours. These tables are bare-bone frameworks, so change them as you please.
 
 
 ######### Functions you'll want to use##########
@@ -46,6 +49,13 @@ setRequiredParams
 	Param 1: Accepts a string, or an array of strings. 
 	Ensures that parameters are available
 	Returns the required variables [either just a straight var, or an array that can be used with list(); see example]
+
+requireAuthLevel
+	Param 1: Either 'userAuth', 'appAuth', or 'none'
+	userAuth requires a valid access_token, and ensures there is an app_id and user_id
+	appAuth requires a valid app auth, and ensures there is an app_id
+	none requires no authentication
+	If userAuth or appAuth is not met, an error is thrown to the client	
 
 respond
 	Param 1: status code [200 on success]
@@ -58,6 +68,12 @@ getParam
 
 getData
 	Return an array of all the data [either $_POST or $_GET]
+
+getAppId
+	returns app_id
+
+getUserId
+	return user_id
 
 query
 	Param 1: the mysql query
