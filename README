@@ -2,19 +2,19 @@ PHP Framework for a REST API
 ===
 
 
-
-
-## To use:
+####### To use:########
 1) Download
 2) Change database parameters
 3) open 'get.class.php' [this contains the GET functions]
----
-  - place custom functions in the API_FUNCTIONS class [use lowercase]
-  - update $valid_functions
+  3a) place custom functions in the API_FUNCTIONS class [use lowercase]
+  3b) update $valid_functions with function names
 4) repeat with 'post.class.php' [this contains the POST functions]
 
 
-### Functions you'll want to use
+
+
+
+######### Functions you'll want to use##########
 
 setRequiredParams
 	Param 1: Accepts a string, or an array of strings. 
