@@ -1,8 +1,8 @@
 <?php
 class API_BASE {
 	
-	privatE $method;//function to be called
-	private $request_data_method;//required format [$_POST vs $_GET]
+	private $method;//function to be called
+	private $request_data_method;//request format [$_POST vs $_GET]
 	private $data;//param data
 	private $response_format;//response format
 	
@@ -96,18 +96,18 @@ class API_BASE {
 			$return_data = array();
 			foreach($param as $param_value){
 				$this->requireParam($param_value);
-				array_push($return_data, $param_value);
+				array_push($return_data, $this->getParam($param_value));
 			}
 			return $return_data;
 		}else{//single param
 			$this->requireParam($param);
-			return $param;
+			return $this->getParam($param);
 		}
 	}
 	
 	//return a particular param
 	private function requireParam($param){
-		if(!isset($this->data[$param]) or empty($this->data[$param])){//check to ensure param exists
+		if(empty($this->getParam($param))){//check to ensure param exists
 			$this->respond(400, "Parameter of '".$param."' is missing");
 		}
 		return;
