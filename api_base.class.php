@@ -11,7 +11,7 @@ class API_BASE {
 	private $log_call = true;
 	
 	//strings; database connection parameters:
-	private $db_host = "localhost", $db_user = "crambu_api",$db_password = "6b_I+f,-@4Xi", $db_name = "crambu_apiFramework";
+	private $db_host = "localhost", $db_user = "user",$db_password = "password", $db_name = "db name";
 	
 	
 	//strings; name of the parameters that hold the name method and format, i.e. - ?method=username&format=json
