@@ -1,51 +1,131 @@
 <?php
 class API_BASE {
 	
-	private $method;//function to be called
-	private $request_data_method;//request format [$_POST vs $_GET]
-	private $data;//param data
-	private $response_format;//response format
+	/*
+	 * CONFIGURATION OPTIONS:
+	 * 
+	 */	
 	
+	//boolean; set to true to log/save the call request into the API HISTORY table
+		//this can be set dynamically with logCall(boolean)
+	private $log_call = true;
+	
+	//strings; database connection parameters:
+	private $db_host = "localhost", $db_user = "crambu_api",$db_password = "6b_I+f,-@4Xi", $db_name = "crambu_apiFramework";
+	
+	
+	//strings; name of the parameters that hold the name method and format, i.e. - ?method=username&format=json
+	private $method_param_name = "method";
+	private $format_param_name = "format";
+	
+	
+	//strings; name of the parameters that hold the application auth variables, i.e. - ?app_id=1&app_secret=bhvjklsdhvlau
+	private $app_id_param_name = "app_id";
+	private $app_secret_param_name = "app_secret";
+	
+	
+	//strings; name of the parameters that hold the user auth variables, i.e. - ?app_id=access&app_secret=bhvjklsdhvlau	
+	private $access_token_param_name = "access_token";
+	private $access_token_param_secret = "access_secret";	
+		
+		
+	//string; EXTERNAL name of the method (or 'function') that  create a new session token and return the data to the app, i.e, ?method=access_token
+	private $access_token_function_name = "access_token";
+	
+	
+	
+	
+	/*
+	 * FUTURE: move parameter names to an array
+	private $param_names = array(
+		"method" => "method", //function name to be call
+		"format" => "format", //format returned in
+		
+		"app_id" => "app_id", //
+		"app_secret" => "app_secret",
+		
+		"access_token" => "access_token",
+		"access_secret" => "access_secret"
+	);
+	 */	
+	
+	
+	
+	
+	
+	
+	
+	
+	 //No need to edit variables below this line 
+	private $method, $request_data_method, $request_data, $response_format = null;//function to be called
+
+
 	private $user_id, $app_id, $access_token = null;//auth vars
-	
 	
 	public function __construct(){
 		
 		//connect to database
-		mysql_connect("localhost", "username", "password") or $this->respond(503 ,"Database connection broken:1");
-		mysql_select_db("db_name") or $this->respond(503, "Database connection broken:2");			
-		
+		mysql_connect($this->db_host, $this->db_user, $this->db_password) or $this->respond(503 ,"Database connection broken");
+		mysql_select_db($this->db_name) or $this->respond(503, "Database connection broken");		
 		
 		//setup method and data
-		$request_method = $this->determineRequestMethod(false);
-		$this->request_data_method = $request_method;
-		$this->data = $request_method == 'post' ? $_POST : $_GET;
+		$request_method = $this->determineRequestMethod(false);//false to prevent loading another function doc
+		$this->request_data_method = $request_method;//set request method var
+		$this->request_data = $request_method == 'post' ? $_POST : $_GET;//default to GET
 
+		//set response format, defaults to json
+		$this->response_format = $this->getParam($this->format_param_name) == 'xml' ? 'xml' : 'json';
 
-		//set response format, fails to json is nothing
-		$this->response_format = $this->getParam("format") == 'xml' ? 'xml' : 'json';
-
-		
-		if(empty($this->data["method"])){//in the client sence, method is the function they want to call
+		//retreives the method parameter
+		$method = $this->getParam($this->method_param_name);
+				
+		if(empty($method)){//in the client sence, method is the function they want to call
 			$this->respond(404, 'Method was not declcared');
 		}else{
-			$this->method = strtolower($this->getParam("method"));//define the method called in lowercase form
+			$this->method = strtolower($method);//define the method called in lowercase form
 		}
 		
 		//built in functionality:
-		if($this->method == "access_token"){
+		if($this->method == $this->access_token_function_name){
 			$this->createAccessToken();
+		}elseif($this->method == "request_auth"){
+			$this->requestingAuth();
 		}
+
+
+		if($this->log_call){
+			$this->start_time = $this->getTime();
+		}
+
 
 	}
 		
 	public function __destruct(){
+		if($this->log_call){
+			
+			if(isset($this->start_time)){
+				$end = $this->getTime();
+				$time = ($end - $this->start); 
+			}else{
+				$time = null;
+			}
+			
+			$method = $this->clean($this->method);
+			$code = intval($this->response_code);
+			$app_id = $this->getAppId();
+			$user_id = $this->getUserId();
+			
+			$this->query("INSERT DELAYED INTO saved_api_log_history (`datetime_called`,`method`,`response_code`,`time_response`,`app_id`,`user_id`)
+			VALUES (NOW(),'$method','$code','$time','$app_id','$user_id')");
+
+				
+		}
 		mysql_close();
 	}
 	
 	
 	public function query($query){
-		$result = mysql_query($query) or $this->respond(503, 'Database query error');
+		$result = mysql_query($query) or $this->respond(503, 'Database query error:'.mysql_error());
 		return $result;
 	}
 	
@@ -54,11 +134,11 @@ class API_BASE {
 	}
 	
 	public function getParam($param){
-		return $this->data[$param];
+		return $this->request_data[$param];
 	}
 	
 	public function getData(){
-		return $this->data;
+		return $this->request_data;
 	}
 	
 	public function getResponseMethod(){
@@ -80,6 +160,11 @@ class API_BASE {
 	public function getUserId(){
 		return $this->user_id;
 	}
+
+	public function logCall($log = true){
+		$this->log_call = $log;
+	}
+	
 
 	public static function determineRequestMethod($load = true){
 		
@@ -116,7 +201,7 @@ class API_BASE {
 	private function requireParam($param){
 		$value_check = $this->getParam($param);
 		if(empty($value_check)){//check to ensure param exists
-			$this->respond(400, "Parameter of '".$param."' is missing");
+			$this->respond(400, "Required parameter of '".$param."' is missing or empty");
 		}
 	}
 	
@@ -132,6 +217,19 @@ class API_BASE {
 	 */
 	
 	
+	
+	
+	//method to set the security level of the whole application, default is max
+	public function setSecurityLevel($level){
+		$this->security_level = $level;
+		return true;
+	}
+
+	//method to get the security level of the whole application, default is max
+	public function getSecurityLevel($level){
+		return $this->security_level;
+	}	
+
 	//method to establish level of authentication required
 	public function requireAuthLevel($level = 'userAuth'){
 		if($level == 'userAuth'){
@@ -201,7 +299,7 @@ class API_BASE {
 	
 	private function validateApp(){
 		//require and get params
-		list($app_id, $app_secret) = $this->setRequiredParams(array("app_id", "app_secret"));		
+		list($app_id, $app_secret) = $this->setRequiredParams(array($this->app_id_param_name, $this->app_secret_param_name));		
 		
 		//clean vars
 		$app_id = intval($app_id);
@@ -212,7 +310,7 @@ class API_BASE {
 	 	
 		//ensure we have a result
 		if(mysql_num_rows($result) == 0){
-			$this->respond(404, "Invalid appAuth app_id and app_secret combination");
+			$this->respond(404, "Invalid appAuth ".$this->app_id_param_name." and ".$this->app_secret_param_name." combination");
 		}		
 		
 		//save results
@@ -256,19 +354,41 @@ class API_BASE {
 	
 	
 	
+	/*
+	private function requestingAuth(){
+		$app_id = $this->requireParam("app_id");
+		
+		if($this->userLoggedIn()){
+			
+			//a user is logged in
+			$result = $this->query("SELECT ");
+		}else{
+			
+			//a user is not logged in
+			header("Location: authUser.php");
+			die();
+		}
+		
+	}
 	
 	
-	
+	private function userLoggedIn(){
+		return false;
+	}	
+	 *
+	 */
 	
 	
 	//respond with the appropriate data
 	public function respond($status = 200, $body){
-
+		
 		if($status != 200){
 			$response = array("error" => 1, "message" => $body);
 		}else{
 			$response = array("error" => 0, "data" => $body);
 		}
+		
+		$this->response_code = $status;
 		
 		//set the response code
 		$responseCodeText = $this->getStatusCodeMessage($status);
@@ -291,7 +411,10 @@ class API_BASE {
 
 		die();
 		
-	}	
+	}
+	
+	
+		
 	
 	public static function getStatusCodeMessage($status){
 		// these could be stored in a .ini file and loaded
@@ -373,6 +496,20 @@ class API_BASE {
 	    }
 	    return $string;
 	}
+	
+	private function getTime() 
+    {
+    	/* 
+	  $mtime = microtime(); 
+	   $mtime = explode(" ",$mtime); 
+	   $mtime = $mtime[1] + $mtime[0]; 
+	    return $mtime; 
+		 * 
+		 */
+		return microtime(true);
+		
+    } 
+
 
 }
 ?>

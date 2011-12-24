@@ -9,19 +9,23 @@
 
 class API_FUNCTIONS extends API_BASE {
 	
+	
+	//this function will 
 	public function execute(){
 			
 		//for extra security, define functions that can be called by the cleint
 		$valid_functions = array("example1", "example2");
 		
+		//get the method
 		$method = $this->getMethod();
 		
 		if(in_array($method, $valid_functions)){
+			//valid method
 			call_user_func(array($this, $method));
 		}else{
+			//function not declared, stop operation
 			$this->respond('404', "Invalid method");
 		}
-
 	
 	}
 	
@@ -52,11 +56,9 @@ class API_FUNCTIONS extends API_BASE {
 		$text = $this->clean($text);
 		
 		//Here you would run a query, post data into the database, etc.
-				
-		$username = "testing";
-		$full_name = "John Robert Jones";
 		
-		$this->respond(200, array("username" => $username, "full_name" => $full_name));
+		//respond with a successful update
+		$this->respond(200, array("text" => $text, "post_id" => $post_id));
 	}
 	
 	

@@ -5,7 +5,7 @@ require("api_base.class.php");
 //determine functions to load
 API_BASE::determineRequestMethod();
 
-//construct the onbject
+//construct the object
 $api = new API_FUNCTIONS();
 
 //execute the API call
